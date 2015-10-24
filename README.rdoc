@@ -1,28 +1,40 @@
-== README
+Virtual attributes are a great help if you have to deal with complex forms, in which the fields don’t map cleanly onto your model’s attributes.
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+What we’d like to do is add the ability to tag to a new article, adding either new or existing tags by specifying them in a text field. There are a number of tagging plugins available for Rails that we could use, but we’re going to create our solution from scratch to show how easy it is to do this by making use of virtual attributes.
 
-Things you may want to cover:
+We’ll start by creating a Tag model. This is a simple model that has just one attribute, name
 
-* Ruby version
+script/generate model tag name:string
 
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+There will have to be an association between the Tag and Article models. As an article can have many tags and a tag can belong to many articles it will have to be a many-to-many relationship. We’ll create a join model for this which we’ll called Tagging. This model will just have two integer fields, article_id and tag_id, that will be foreign keys on the Article and Tag models.
 
 
-Please feel free to use a different markup language if you do not plan to run
-<tt>rake doc:app</tt>.
+
+script/generate model tagging article_id:integer tag_id:integer
+
+
+To complete the creation of our two new models we just need to run the newly
+created migrations
+
+Next we’ll quickly define the relationships in the models themselves. Tagging will belong_to both Article and Tag.
+
+
+With the models in place we can now alter the new article view to add a text field where we can add a space-separated list of the tags that we want to associate with the article. Because we’re converting the text from the field into an association the cleanest way to do this will be to use a virtual attribute.
+
+
+The new article form with the tag_names field added.
+
+Our Article model doesn’t have a tag_names attribute so we’ll create a virtual attribute to represent the string of tags that is assigned to an article. Previously we’ve used getter and setter methods to create virtual attributes. For our Article model we could create a tag_names= method and use that to set the article’s tags. There are disadvantages to this approach though, one of which is that creating the tags in the setter method will create Tagging records every time the attribute has its value set, whether the article itself is saved or not.
+
+A better way to do this is by using a callback. An after_save callback in Article will ensure that only when an article is saved are its tags saved. The model will now look like this:
+
+
+
+Note that we still need getter and setter methods for the virtual tag_names attribute, but that this is now done with an accessor. The private assign_tags method that is called after the article is saved first checks that @tag_names is not nil and if it isn’t splits its value at any spaces it finds to create an array. It then uses map to iterate over the array and returns a Tag for each value. It does this by using the find_or_create_by_name method to return a Tag with a given name, creating it first if it doesn’t exist. Finally we assign the array of Tags to the Article’s tags attribute.
+
+Having made the changes to our model class we can now test our code by adding a new article and giving it some tags.
+Adding a new article with tags.
+
+
+
+
